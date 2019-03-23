@@ -1,12 +1,22 @@
 #include <SoftwareSerial.h>
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27,16,2);
 
 SoftwareSerial GSMport(4, 5); // RX, TX пины gsm
 long previousMillis = 0;  
 long interval = 5000;
 int c = 101;
-String httpanswer = "error httpread";
+String _response = "";
+
 
 void setup(){
+lcd.init(); 
+lcd.backlight();
+lcd.setCursor(0,0);
+lcd.print("Init...");
+
+delay(50);
 Serial.begin(9600);  //скорость порта
 delay(5000); //время на инициализацию GSM модуля
 Serial.println("GPRS test");
@@ -29,7 +39,9 @@ void loop() {
        
     c++;
     }
-  
+
+    
+}
 
 
 
@@ -83,11 +95,26 @@ void gprs_send(String data) {  //Процедура отправки данны�
   GSMport.println("AT+HTTPACTION=0");
   delay(d * 8);
   Serial.println(ReadGSM());
-  //Serial.println(ReadGSM());
-  //delay(d);
   GSMport.println("AT+HTTPREAD");
   delay(d*2);
-  Serial.print(ReadGSM());
+      
+  _response = ReadGSM();                                      //Чтение строки в буфер
+  int index_start, index_end;                                 //Переменные начала и кинца подстроки
+  index_start = _response.indexOf("{");                       //Начало строки от {  
+  index_end = _response.indexOf("}");                         //Конец строки до }
+  _response = _response.substring(index_start+1,index_end+2); //Выделение нужной строки
+
+ 
+  
+  Serial.println(_response);                                 
+  lcd.clear();
+
+
+  
+  lcd.print(_response);                                       
+  
+  _response ="";                                               //Обнуление буфера
+  
   delay(d);
   Serial.println("Send done");
   delay(2000);
