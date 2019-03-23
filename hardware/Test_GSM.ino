@@ -1,5 +1,10 @@
 #include <SoftwareSerial.h>
+
 SoftwareSerial GSMport(4, 5); // RX, TX пины gsm
+long previousMillis = 0;  
+long interval = 5000;
+int c = 101;
+String httpanswer = "error httpread";
 
 void setup(){
 Serial.begin(9600);  //скорость порта
@@ -10,19 +15,21 @@ delay(200);
 GSMport.println("AT+CMEE=2");
 delay(200);
 gprs_init(); // инициализация gps 
-delay(3000);
+delay(5000);
 }
-
-
-
 
 
 void loop() {
-  if (GSMport.available())
-    Serial.write(GSMport.read());
-  if (Serial.available())
-    GSMport.write(Serial.read());
-}
+  unsigned long currentMillis = millis();
+  if(currentMillis - previousMillis > interval) {
+    previousMillis = currentMillis;   
+
+      gprs_send(String(c));  //Запрос на сервер
+       
+       
+    c++;
+    }
+  
 
 
 
@@ -49,6 +56,7 @@ void gprs_init() {  //Процедура начальной инициализа
   }
 
   GSMport.println("AT+HTTPSSL=1");
+  delay(d);
   Serial.println("GPRG init complete");
 } 
 
@@ -62,4 +70,25 @@ String ReadGSM() {  //функция чтения данных от GSM моду
     delay(10);
   }
   return v;
+}
+
+void gprs_send(String data) {  //Процедура отправки данных на сервер
+  int d = 500;
+  Serial.println("Send start");
+  Serial.println("setup url");
+  GSMport.println("AT+HTTPPARA=\"URL\",\"https://35.242.254.81/trash.php?id=6&per="+data+"\"");      
+  delay(d*4);
+  Serial.println(ReadGSM());
+  Serial.println("GET url");
+  GSMport.println("AT+HTTPACTION=0");
+  delay(d * 8);
+  Serial.println(ReadGSM());
+  //Serial.println(ReadGSM());
+  //delay(d);
+  GSMport.println("AT+HTTPREAD");
+  delay(d*2);
+  Serial.print(ReadGSM());
+  delay(d);
+  Serial.println("Send done");
+  delay(2000);
 }
