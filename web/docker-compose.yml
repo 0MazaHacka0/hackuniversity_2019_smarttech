@@ -1,0 +1,34 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx:1.15.9
+    container_name: ng
+    ports:
+      - "8080:8000"
+    volumes:
+      - .:/src
+      - ./config/nginx:/etc/nginx/conf.d
+    depends_on:
+      - api
+
+  api:
+    build: .
+    container_name: api
+    env_file:
+      - config/envs/postgres.env
+    command: ['./scripts/wait-for-postgres.sh', 'db', './scripts/run_server.sh']
+    depends_on:
+      - db
+    volumes:
+      - .:/src
+    expose:
+      - "8000"
+
+  db:
+    image: postgres:11
+    container_name: pg
+    env_file:
+      - config/envs/postgres.env
+    volumes:
+      - ./db:/var/lib/postgresql/data
