@@ -1,9 +1,11 @@
 package com.smarttech.socialstep.ui.activities;
 
 import android.Manifest;
+import android.app.DownloadManager;
 import android.content.pm.PackageManager;
 import android.graphics.PointF;
 import android.location.GpsStatus;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -15,9 +17,11 @@ import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
+import com.here.android.mpa.common.GeoBoundingBox;
 import com.here.android.mpa.common.GeoCoordinate;
 import com.here.android.mpa.common.GeoPosition;
 import com.here.android.mpa.common.Image;
@@ -28,17 +32,34 @@ import com.here.android.mpa.mapping.Map;
 import com.here.android.mpa.mapping.MapGesture;
 import com.here.android.mpa.mapping.MapMarker;
 import com.here.android.mpa.mapping.MapObject;
+import com.here.android.mpa.mapping.MapRoute;
 import com.here.android.mpa.mapping.MapScreenMarker;
 import com.here.android.mpa.mapping.MapTransitLayer;
 import com.here.android.mpa.mapping.SupportMapFragment;
+import com.here.android.mpa.routing.CoreRouter;
+import com.here.android.mpa.routing.RouteOptions;
+import com.here.android.mpa.routing.RoutePlan;
+import com.here.android.mpa.routing.RouteResult;
+import com.here.android.mpa.routing.RouteWaypoint;
+import com.here.android.mpa.routing.RoutingError;
+import com.here.sdk.analytics.internal.HttpClient;
+import com.nokia.maps.restrouting.Response;
 import com.smarttech.socialstep.R;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.lang.ref.WeakReference;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static android.provider.ContactsContract.CommonDataKinds.Website.URL;
 
 public class MapActivity extends AppCompatActivity {
 
@@ -46,10 +67,15 @@ public class MapActivity extends AppCompatActivity {
 
     private boolean paused = false;
 
-    List<GeoCoordinate> waypoints = new ArrayList<GeoCoordinate>();
+
+
+    RoutePlan routePlan;
 
     // Set this to PositioningManager.getInstance() upon Engine Initialization
     private PositioningManager posManager;
+
+    public MapRoute mapRoute;
+    public CoreRouter router;
 
     /**
      * permissions request code
@@ -99,9 +125,48 @@ public class MapActivity extends AppCompatActivity {
               //  map.getMapTransitLayer().setMode(MapTransitLayer.Mode.EVERYTHING);
             //showBuses();
 
+                String my_url = "http://socialstep.tech:5000/semen/set/1";// Replace this with your own url
+                String my_data = "Hello my First Request Without any library";// Replace this with your data
+                new MyHttpRequestTask().execute(my_url,my_data);
+
+                // Select routing options
+                map.getMapTransitLayer().setMode(MapTransitLayer.Mode.EVERYTHING);
+
+                RouteOptions routeOptions = new RouteOptions();
+                routeOptions.setTransportMode(RouteOptions.TransportMode.PUBLIC_TRANSPORT);
+                routeOptions.setRouteType(RouteOptions.Type.FASTEST);
+                routePlan.setRouteOptions(routeOptions);
+
+                router.calculateRoute(routePlan, new RouterListener());
+
             }
         });
         checkPermissions();
+    }
+
+    private final class RouterListener implements CoreRouter.Listener {
+
+        // Method defined in Listener
+        public void onProgress(int percentage) {
+            // Display a message indicating calculation progress
+        }
+
+        // Method defined in Listener
+        public void onCalculateRouteFinished(List<RouteResult> routeResult, RoutingError error) {
+            // If the route was calculated successfully
+            if (error == RoutingError.NONE) {
+                // Render the route on the map
+                mapRoute = new MapRoute(routeResult.get(0).getRoute());
+                map.addMapObject(mapRoute);
+
+                // Get the bounding box containing the route and zoom in (no animation)
+                GeoBoundingBox gbb = routeResult.get(0).getRoute().getBoundingBox();
+                map.zoomTo(gbb, Map.Animation.NONE, Map.MOVE_PRESERVE_ORIENTATION);
+            }
+            else {
+                // Display a message indicating route calculation failure
+            }
+        }
     }
 
     private void initialize() {
@@ -130,12 +195,15 @@ public class MapActivity extends AppCompatActivity {
                         // Display position indicator
                         mapFragment.getPositionIndicator().setVisible(true);
 
+                        routePlan = new RoutePlan();
+                        router = new CoreRouter();
+
                         mapFragment.getMapGesture().addOnGestureListener(new MapGesture.OnGestureListener.OnGestureListenerAdapter() {
                             @Override
                             public boolean onLongPressEvent(PointF pointF) {
                                 if (map != null) {
                                     map.addMapObject(new MapMarker(map.pixelToGeo(pointF)));
-                                    waypoints.add(map.pixelToGeo(pointF));
+                                    routePlan.addWaypoint(new RouteWaypoint(map.pixelToGeo(pointF)));
                                 }
                                 return true;
                             }
@@ -234,6 +302,47 @@ public class MapActivity extends AppCompatActivity {
         }
         map = null;
         super.onDestroy();
+    }
+
+    private class MyHttpRequestTask extends AsyncTask<String,Integer,String> {
+
+        @Override
+        protected String doInBackground(String... params) {
+            String my_url = params[0];
+            String my_data = params[1];
+            try {
+                java.net.URL url = new URL(my_url);
+                HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
+                // setting the  Request Method Type
+                httpURLConnection.setRequestMethod("GET");
+                // adding the headers for request
+                httpURLConnection.setRequestProperty("Content-Type", "application/json");
+                try{
+                    //to tell the connection object that we will be wrting some data on the server and then will fetch the output result
+                    httpURLConnection.setDoOutput(true);
+                    // this is used for just in case we don't know about the data size associated with our request
+                    httpURLConnection.setChunkedStreamingMode(0);
+
+                    // to write tha data in our request
+                    OutputStream outputStream = new BufferedOutputStream(httpURLConnection.getOutputStream());
+                    OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
+                    outputStreamWriter.flush();
+                    outputStreamWriter.close();
+
+                }catch (Exception e){
+                    e.printStackTrace();
+                }finally {
+                    // this is done so that there are no open connections left when this task is going to complete
+                    httpURLConnection.disconnect();
+                }
+
+
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+
+            return null;
+        }
     }
 
 }

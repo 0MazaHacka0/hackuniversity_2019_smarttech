@@ -17,7 +17,7 @@
         android:layout_gravity="center"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@drawable/hack_uni_logo" />
+        android:src="@drawable/png" />
 
     <ScrollView
         android:id="@+id/login_form"
