@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.smarttech.socialstep">
+
+    <!-- To auto-complete the email text field in the login form with the user's emails -->
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <uses-permission android:name="android.permission.READ_PROFILE" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+    <meta-data
+        android:name="com.here.android.maps.appid"
+        android:value="KTn0Xv3JDwXJB4z73m3A" />
+    <meta-data
+        android:name="com.here.android.maps.apptoken"
+        android:value="BVss3blJV_CtL5N_mvFHAA" />
+    <meta-data
+        android:name="com.here.android.maps.license.key"
+        android:value="Fp8D9pWiCAcoOBGLuI2IqSYCMMGEjPoFsXH+x6i0wnTbUUXOyL5gJO6fi3s4+eYUwdsGMyoJrQH8DAx2tB4DwBZyZD3a8Vw904hiqObCz6EEF/eB6Enu8g/1TUARvp/GQ7cTUgvUk3SeMi6IfY8PaS5e5LWqS7aZjA7dv7BXZznOuffew64euXOmXIK9lf47AXzM7R8ZURE7lr1PHaJA4SvwUHu0eMUt6DaxSEp75mKRGhbSaZRycwaQoDxEFqfnBFV4z9bvpmBNeSmMZXSpKfVM27Axd8OPASp5CKzvmHHw1bENAJFah4qEHZhB7+HgFXpN1yAv9HdowE4IzLG9b0aWrlUfthE0AKFD8HD+KoTxQvF0WSIuVAucYatZ+ZoRN6/t3NA9Kj2CSq0J1CrmFPfDr0ydI/y5KHtE5oJRDZDBTBp//v1tEOmFtd7vMPtbXvKWQV5dS+uXxArRSBJpVySX6U6ZQ5CS4azGlZDBV4tmUwUl/E5tEIypFd648RIXHLzdcawY/YXh06nn2cxygcmHPunbdwP4MhGh9VEkCoflJbMI/6qhAbnoHVb3G3BftPpOAoY6P/UOTuDpXERlFMvHGecQ4Q2D+zXHSnAGVGgb2WHzyNBaVA0zCD5jnpeS6kpPUpF93D4kSfstIl3bok5gnL0MJSfq18hy3nIsPSc=" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".ui.activities.MapActivity"
+            android:label="@string/title_activity_map"
+            android:theme="@style/AppTheme.NoActionBar">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="com.here.android.mpa.service.MapService"
+            android:label="here_maps"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="here_maps">
+                </action>
+            </intent-filter>
+        </service>
+
+
+
+    </application>
+
+</manifest>
