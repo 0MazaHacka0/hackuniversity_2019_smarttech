@@ -4,14 +4,15 @@
 LiquidCrystal_I2C lcd(0x27,16,2);
 #include <ArduinoJson.h>
 
+char buf[130];
 SoftwareSerial GSMport(4, 5); // RX, TX пины gsm
 long previousMillis = 0;  
 long interval = 5000;
 int c = 101;
 String _response = "";
 
-StaticJsonDocument<200> doc; 
-const char json[] = "{\"sensor\":\"gps\",\"id\":1351824120}";
+
+StaticJsonDocument<300> doc; 
 
 void setup(){
 lcd.init(); 
@@ -23,28 +24,61 @@ lcd.print("Init...");
 
 
 delay(50);
-Serial.begin(9600);  //скорость порта
+Serial.begin(19200);  //скорость порта
 delay(5000); //время на инициализацию GSM модуля
 Serial.println("GPRS test");
 GSMport.begin(57600);
 delay(200);
-GSMport.println("AT+CMEE=2");
-delay(200);
+//GSMport.println("AT+CMEE=2");
+//delay(200);
 gprs_init(); // инициализация gps 
 delay(5000);
 }
 
 
 void loop() {
-  unsigned long currentMillis = millis();
-  if(currentMillis - previousMillis > interval) {
-    previousMillis = currentMillis;   
+//  unsigned long currentMillis = millis();
+//  if(currentMillis - previousMillis > interval) 
+//    previousMillis = currentMillis;   
 
-      gprs_send(String(c));  //Запрос на сервер
+      gprs_send();  //Запрос на сервер
+
+   _response = ReadGSM2();   //Чтение строки в буфер
+  Serial.println(_response); 
+  
+  int index_start, index_end;                                 //Переменные начала и конца подстроки
+  index_start = _response.indexOf("{");                       //Начало строки от {  
+  index_end = _response.indexOf("}");                         //Конец строки до }
+  _response = _response.substring(index_start,index_end+1); //Выделение нужной строки
+  //Serial.println(_response); 
+                                  
+  DeserializationError error = deserializeJson(doc, _response);
+  
+  if (error) {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+    return;
+  }
+  const char* end = doc["end"];
+  int id = doc["id"];
+  const char* start = doc["start"];
+  Serial.println(start);
+  Serial.println(end);
+  lcd.setCursor(0,0); 
+  lcd.print(start); 
+  lcd.setCursor(0,1); 
+  lcd.print(end);
+  
+  
+
+//  lcd.clear();
+//  lcd.print(_response);                                       
+  
+  _response ="";     //Обнуление буфера
        
-       
-    c++;
-    }
+  Serial.println("Send done");
+  delay(2000);
+    
 
     
 }
@@ -72,29 +106,62 @@ void gprs_init() {  //Процедура начальной инициализа
     Serial.println(ReadGSM());  //показываем ответ от GSM модуля
     delay(d);
   }
-
-  GSMport.println("AT+HTTPSSL=1");
-  delay(d);
   Serial.println("GPRG init complete");
 } 
 
 
-String ReadGSM() {  //функция чтения данных от GSM модуля
-  int c;
+String ReadGSM2() {  //функция чтения данных от GSM модуля
   String v;
-  while (GSMport.available()) {  //сохраняем входную строку в переменную v
-    c = GSMport.read();
-    v += char(c);
-    delay(10);
+  while (v.length()<=125) {  //сохраняем входную строку в переменную v
+    
+    if(GSMport.available()>0)
+    v += (char)GSMport.read();
+    
   }
   return v;
 }
 
-void gprs_send(String data) {  //Процедура отправки данных на сервер
+//______________________________________________
+
+String ReadGSM() {  //функция чтения данных от GSM модуля
+  String v;
+  while (GSMport.available()>0) {  //сохраняем входную строку в переменную v
+    v += (char)GSMport.read();
+  }
+  return v;
+}
+
+int readline(int readch, char *buffer, int len) {
+    static int pos = 0;
+    int rpos;
+
+    if (readch > 0) {
+        switch (readch) {
+            case '\r': // Ignore CR
+                break;
+            case '\n': // Return on new-line
+                rpos = pos;
+                pos = 0;  // Reset position index ready for next time
+                return rpos;
+            default:
+                if (pos < len-1) {
+                    buffer[pos++] = readch;
+                    buffer[pos] = 0;
+                }
+        }
+    }
+    return 0;
+}
+
+
+
+//}
+
+void gprs_send() {  //Процедура отправки данных на сервер
   int d = 500;
   Serial.println("Send start");
   Serial.println("setup url");
-  GSMport.println("AT+HTTPPARA=\"URL\",\"https://35.242.254.81/trash.php?id=6&per="+data+"\"");      
+  GSMport.println("AT+HTTPPARA=\"URL\",\"http://89.108.65.120:5000/semen/test\"");      
   delay(d*4);
   Serial.println(ReadGSM());
   Serial.println("GET url");
@@ -102,39 +169,5 @@ void gprs_send(String data) {  //Процедура отправки данны�
   delay(d * 8);
   Serial.println(ReadGSM());
   GSMport.println("AT+HTTPREAD");
-  delay(d*2);
-      
-//  _response = ReadGSM();                                      //Чтение строки в буфер
-//  int index_start, index_end;                                 //Переменные начала и кинца подстроки
-//  index_start = _response.indexOf("{");                       //Начало строки от {  
-//  index_end = _response.indexOf("}");                         //Конец строки до }
-//  _response = _response.substring(index_start+1,index_end+2); //Выделение нужной строки
-//  Serial.println(_response); 
-                                  
-  DeserializationError error = deserializeJson(doc, json);
   
-  if (error) {
-    Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.c_str());
-    return;
-  }
-  const char* sensor = doc["sensor"];
-  long id = doc["id"];
-  Serial.println(sensor);
-  Serial.println(id);
-  lcd.setCursor(0,0); 
-  lcd.print(sensor); 
-  lcd.setCursor(0,1); 
-  lcd.print(id);
-  
-  
-
-//  lcd.clear();
-//  lcd.print(_response);                                       
-  
-  _response ="";     //Обнуление буфера
-  
-  delay(d);
-  Serial.println("Send done");
-  delay(2000);
 }
